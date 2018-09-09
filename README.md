@@ -6,4 +6,16 @@ This repo provides docker files, k8s manifests and OpenShift templates for Apach
 
 ```bash
 $ kubectl create -f https://raw.githubusercontent.com/kubernauts/kafka-confluent-platform/master/k8s/streaming-ephemeral.yaml
-```    
+```
+
+```bash
+$ kubectl get pods
+NAME      READY     STATUS    RESTARTS   AGE
+kafka-0   1/1       Running   0          1m
+kafka-1   1/1       Running   0          1m
+kafka-2   1/1       Running   0          1m
+zoo-0     1/1       Running   0          1m
+zoo-1     1/1       Running   0          1m
+zoo-2     1/1       Running   0          1m
+```
+    
