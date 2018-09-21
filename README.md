@@ -24,13 +24,13 @@ zoo-2     1/1       Running   0          1m
 Deploy confluent test-client
 
 ```bash
-kubectl create -f confulent-testclient-confluent-5.yaml
+kubectl create -f confluent-testclient-confluent-5.yaml
 ```
 
 ### Create topics
 
 ```bash
-kubectl exec -it confluent-client -- /usr/bin/kafka-topics --zookeeper zoo --topic topic1 --create --partitions 30 --replication-factor 1
+kubectl exec -it confluent-client -- /usr/bin/kafka-topics --zookeeper zoo --topic topic1 --create --partitions 30 --replication-factor 3
 ```
 
 ### List topics
@@ -54,7 +54,7 @@ kubectl exec -it confluent-client -- /usr/bin/kafka-console-producer --broker-li
 ### Consume messages
 
 ```bash
-kubectl exec -it confluent-client -- /usr/bin/kafka-console-consumer --bootstrap-server broker:9092 --topic topic1 --from-beginning --partition 1
+kubectl exec -it confluent-client -- /usr/bin/kafka-console-consumer --bootstrap-server broker:9092 --topic topic1 --from-beginning
 ```
 
 ### Delete topic
