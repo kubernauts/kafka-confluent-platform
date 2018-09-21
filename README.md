@@ -98,7 +98,7 @@ Clone the great implementation of Charles Martinot for the Yahoo Kafka Manager:
 ```bash
 $ git clone https://github.com/MacTynow/kafka-manager-chart.git
 $ cd kafka-manager-chart 
-```bash
+```
 
 Adapt values.yaml
 
@@ -137,26 +137,31 @@ Select your newly created project "confluent-kafka-5-project", navigate to Catal
 
 ### PROMETHEUS SERVER
 
+```bash
 Expose Prometheus using Layer 7 Load Balancer: false
 Prometheus Service Type: ClusterIP
 Prometheus Persistent Volume StorageClass: gp2 (whic was created through the storageclass on EKS)
 Create Persistent Volume for Prometheus: true
+```
 
 ### GRAFANA SETTINGS
 
+```bash
 Expose Grafana using Layer 7 Load Balancer: false
 Grafana Service Type: NodePort
 Grafana Persistent Volume Enabled: true
 Storage Class for Grafana: gp2
-
+```
 ### ALERTMANAGER
 
+```bash
 Expose Alertmanager using Layer 7 Load Balancer: false
 Alertmanager Service Type: ClusterIP
 Create Persistent Volume for Alertmanager: true
 Alertmanager Persistent Volume StorageClass: gp2
+```
 
-And click on lunch, after 2 minutes you shall get:
+And click on launch, after 2 minutes you shall get:
 
 ```bash
 $ k get pods -n prometheus
@@ -178,8 +183,16 @@ Run something like this to access the Grafana Dashboard:
 $ kubectlforward prometheus-grafana-5bf7b6d949-pldn7 3000
 ```
 
-And import the kafka-overview_rev1.json as "Kafka Overview" Dashboard.
+Import the kafka-overview_rev1.json provided in the root of this repo as "Kafka Overview" Dashboard.
+You'll get a bunch of other very useful dashboard provided throught te Rancher installation.
 
 ![Alt text](./grafana-kafka-overview.png?raw=true "Grafana Kafka Overview")
 ![Alt text](./grafana-dashboards.png?raw=true "Grafana Kafka Dashboards")
+
+### Any Questions?
+
+Join us on Kubernauts Slack Channel:
+
+https://kubernauts-slack-join.herokuapp.com/
+
 
