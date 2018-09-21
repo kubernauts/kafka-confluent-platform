@@ -2,9 +2,12 @@
 
 This repo provides docker files, k8s manifests and OpenShift templates for Apache Kafka® Confluent Platform Community Edition. The reason why we're not using helm charts or the kafka operator at this time is because we like plain manifests which are more suitable for the learning phase.
 
-## Quick start
+## Quick start ephemeral
+
+To deploy the ephemeral version for development create the kafka-confluent-5 namespace and deploy the kafka-broker, zookeeper and the related services as follow:
 
 ```bash
+$ kubectl create -f kafka-confluent-5
 $ kubectl create -f https://raw.githubusercontent.com/kubernauts/kafka-confluent-platform/master/k8s/streaming-ephemeral.yaml
 ```
 
@@ -18,7 +21,23 @@ zoo-0     1/1       Running   0          1m
 zoo-1     1/1       Running   0          1m
 zoo-2     1/1       Running   0          1m
 ```
-    
+
+## Quick start persistent
+
+To deploy the persistent version with PVCs, create the kafka-confluent-5 namespace, create the storage class gp2 (for aws-ebs here) and deploy the kafka-broker, zookeeper and the related services with persitent support as follow: 
+
+```bash
+$ kubectl create -f kafka-confluent-5
+$ kubectl create -f https://raw.githubusercontent.com/kubernauts/kafka-confluent-platform/master/k8s/streaming-persistent-aws-ebs.yaml
+$ kubectl create -f https://raw.githubusercontent.com/kubernauts/kafka-confluent-platform/master/k8s/streaming-ephemeral.yaml
+```
+
+## Qucik start OpenShift
+
+For OpenShift 3.5 create a project "kafka-confluent-5" in OpenShift and upload the template through OpenShift Webcosole:
+
+https://raw.githubusercontent.com/kubernauts/kafka-confluent-platform/master/openshift/streaming-template-confluent-persistenti-gluster.yaml  
+
 ## Testing
 
 Deploy confluent test-client
