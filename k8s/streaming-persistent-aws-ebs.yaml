@@ -1,0 +1,233 @@
+apiVersion: v1
+items:
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: kafka
+      component: zookeeper
+    name: zoo
+  spec:
+    clusterIP: None
+    ports:
+    - name: peer
+      port: 2888
+    - name: leader-election
+      port: 3888
+    selector:
+      app: kafka
+      component: zookeeper
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: kafka
+      component: zookeeper
+    name: zookeeper
+  spec:
+    ports:
+    - name: client
+      port: 2181
+    selector:
+      app: kafka
+      component: zookeeper
+- apiVersion: apps/v1
+  kind: StatefulSet
+  metadata:
+    labels:
+      app: kafka
+      component: zookeeper
+    name: zoo
+  spec:
+    selector:
+      matchLabels:
+        app: kafka
+        component: zookeeper
+    replicas: 3
+    serviceName: zoo
+    template:
+      metadata:
+        annotations:
+          prometheus.io/path: /metrics
+          prometheus.io/port: "5555"
+          prometheus.io/scrape: "true"
+        labels:
+          app: kafka
+          component: zookeeper
+      spec:
+        terminationGracePeriodSeconds: 10
+        containers:
+          - name: zookeeper
+            image: 'confluentinc/cp-zookeeper:5.0.0'
+            env:
+            - name: KAFKA_HEAP_OPTS
+              value: '-Xms512M -Xmx512M'
+            - name: ZOOKEEPER_TICK_TIME
+              value: '2000'
+            - name: ZOOKEEPER_SYNC_LIMIT
+              value: '5'
+            - name: ZOOKEEPER_INIT_LIMIT
+              value: '10'
+            - name: ZOOKEEPER_MAX_CLIENT_CNXNS
+              value: '60'
+            - name: ZOOKEEPER_AUTOPURGE_SNAP_RETAIN_COUNT
+              value: '3'
+            - name: ZOOKEEPER_AUTOPURGE_PURGE_INTERVAL
+              value: '24'
+            - name: ZOOKEEPER_CLIENT_PORT
+              value: '2181'
+            - name: ZOOKEEPER_SERVER_ID
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: ZOOKEEPER_SERVERS
+              value: >-
+                zoo-0.zoo.kafka-confluent-5.svc.cluster.local:2888:3888;zoo-1.zoo.kafka-confluent-5.svc.cluster.local:2888:3888;zoo-2.zoo.kafka-confluent-5.svc.cluster.local:2888:3888
+            ports:
+              - containerPort: 2181
+                name: client
+              - containerPort: 2888
+                name: peer
+              - containerPort: 3888
+                name: leader-election
+            volumeMounts:
+              - name: datadir
+                mountPath:  /var/lib/zookeeper/data
+            # Set Zookeeper Server ID by fetching the hostname (hostname is of the form `zookeeper-0`, `zookeeper-1`, …
+            command:
+            - /bin/bash
+            - -c
+            - export ZOOKEEPER_SERVER_ID=$((${HOSTNAME##*-}+1)) && /etc/confluent/docker/run
+        volumes:
+        - name: datadir
+          emptyDir: {}
+    volumeClaimTemplates:
+    - metadata:
+        name: datadir
+        labels:
+          app: kafka
+          component: zookeeper
+        annotations:
+          volume.beta.kubernetes.io/storage-class: gp2
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: kafka
+      component: kafka-broker
+    name: broker
+  spec:
+    clusterIP: None
+    ports:
+    - port: 9092
+    selector:
+      app: kafka
+      component: kafka-broker
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: kafka
+      component: kafka-broker
+    name: kafka
+  spec:
+    ports:
+    - port: 9092
+    selector:
+      app: kafka
+      component: kafka-broker
+- apiVersion: apps/v1
+  kind: StatefulSet
+  metadata:
+    labels:
+      app: kafka
+      component: kafka-broker
+    name: kafka
+  spec:
+    selector:
+      matchLabels:
+        app: kafka
+    replicas: 3
+    serviceName: broker
+    template:
+      metadata:
+        annotations:
+          prometheus.io/path: /metrics
+          prometheus.io/port: "5555"
+          prometheus.io/scrape: "true"
+        labels:
+          app: kafka
+          component: kafka-broker
+      spec:
+        terminationGracePeriodSeconds: 10
+        containers:
+        - name: broker
+          image: 'kubernautslabs/cp-kafka:5.0.0'
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: HOST_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.hostIP
+            - name: KAFKA_ADVERTISED_LISTENERS
+              value: 'EXTERNAL://${HOST_IP}:$((31090 + ${KAFKA_BROKER_ID}))'
+            - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+              value: 'PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT'
+            - name: KAFKA_HEAP_OPTS
+              value: '-Xmx2G'
+            - name: KAFKA_ZOOKEEPER_CONNECT
+              value: zoo
+            - name: KAFKA_LOG_DIRS
+              value: /opt/kafka/data/logs
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: '3'
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: '3'
+            - name: KAFKA_OPTS
+              value: "-javaagent:/opt/prometheus/jmx_prometheus_javaagent.jar=5555:/opt/prometheus/conf/prometheus-config.yml"
+          ports:
+          - containerPort: 9092
+            name: kafka
+          - containerPort: 5555
+            name: prometheus
+          volumeMounts:
+          - name: datadir
+            mountPath: /opt/kafka/data
+          command:
+            - sh
+            - -exc
+            - |
+              unset KAFKA_PORT && export KAFKA_BROKER_ID=${HOSTNAME##*-} && \
+              export KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://${POD_IP}:9092,EXTERNAL://${HOST_IP}:$((31090 + ${KAFKA_BROKER_ID})) && \
+              exec /etc/confluent/docker/run
+        volumes:
+        - name: datadir
+          emptyDir: {}
+    volumeClaimTemplates:
+    - metadata:
+        name: datadir
+        labels:
+          app: kafka
+          component: kafka-broker
+        annotations:
+          volume.beta.kubernetes.io/storage-class: gp2
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+kind: List
+metadata: {}
