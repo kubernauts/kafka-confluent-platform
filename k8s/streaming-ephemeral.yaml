@@ -55,30 +55,53 @@ items:
           app: kafka
           component: zookeeper
       spec:
-        containers:
-        - command:
-          - /bin/bash
-          - -c
-          - export ZOOKEEPER_SERVER_ID=$((${HOSTNAME##*-}+1)) && /etc/confluent/docker/run
-          env:
-          - name: ZOOKEEPER_CLIENT_PORT
-            value: "2181"
-          image: kubernautslabs/cp-zookeeper:5.0.0
-          name: zookeeper
-          ports:
-          - containerPort: 2181
-            name: client
-          - containerPort: 2888
-            name: peer
-          - containerPort: 3888
-            name: leader-election
-          volumeMounts:
-          - mountPath: /var/lib/zookeeper/data
-            name: datadir
         terminationGracePeriodSeconds: 10
+        containers:
+          - name: zookeeper
+            image: 'confluentinc/cp-zookeeper:5.0.0'
+            env:
+            - name: KAFKA_HEAP_OPTS
+              value: '-Xms512M -Xmx512M'
+            - name: ZOOKEEPER_TICK_TIME
+              value: '2000'
+            - name: ZOOKEEPER_SYNC_LIMIT
+              value: '5'
+            - name: ZOOKEEPER_INIT_LIMIT
+              value: '10'
+            - name: ZOOKEEPER_MAX_CLIENT_CNXNS
+              value: '60'
+            - name: ZOOKEEPER_AUTOPURGE_SNAP_RETAIN_COUNT
+              value: '3'
+            - name: ZOOKEEPER_AUTOPURGE_PURGE_INTERVAL
+              value: '24'
+            - name: ZOOKEEPER_CLIENT_PORT
+              value: '2181'
+            - name: ZOOKEEPER_SERVER_ID
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: ZOOKEEPER_SERVERS
+              value: >-
+                zoo-0.zoo.kafka-confluent-5.svc.cluster.local:2888:3888;zoo-1.zoo.kafka-confluent-5.svc.cluster.local:2888:3888;zoo-2.zoo.kafka-confluent-5.svc.cluster.local:2888:3888
+            ports:
+              - containerPort: 2181
+                name: client
+              - containerPort: 2888
+                name: peer
+              - containerPort: 3888
+                name: leader-election
+            volumeMounts:
+              - name: datadir
+                mountPath:  /var/lib/zookeeper/data
+            # Set Zookeeper Server ID by fetching the hostname (hostname is of the form `zookeeper-0`, `zookeeper-1`, …
+            command:
+            - /bin/bash
+            - -c
+            - export ZOOKEEPER_SERVER_ID=$((${HOSTNAME##*-}+1)) && /etc/confluent/docker/run
         volumes:
-        - emptyDir: {}
-          name: datadir
+        - name: datadir
+          emptyDir: {}
 - apiVersion: v1
   kind: Service
   metadata:
@@ -129,33 +152,54 @@ items:
           app: kafka
           component: kafka-broker
       spec:
+        terminationGracePeriodSeconds: 10
         containers:
-        - command:
-          - /bin/bash
-          - -c
-          - unset KAFKA_PORT && export KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://$HOSTNAME.broker:9092
-            && /etc/confluent/docker/run
+        - name: broker
+          image: 'kubernautslabs/cp-kafka:5.0.0'
           env:
-          - name: KAFKA_HEAP_OPTS
-            value: -Xmx2G
-          - name: KAFKA_ZOOKEEPER_CONNECT
-            value: zoo
-          - name: KAFKA_OPTS
-            value: -javaagent:/opt/prometheus/jmx_prometheus_javaagent.jar=5555:/opt/prometheus/conf/prometheus-config.yml
-          image: kubernautslabs/cp-kafka:5.0.0
-          name: broker
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: HOST_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.hostIP
+            - name: KAFKA_ADVERTISED_LISTENERS
+              value: 'EXTERNAL://${HOST_IP}:$((31090 + ${KAFKA_BROKER_ID}))'
+            - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+              value: 'PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT'
+            - name: KAFKA_HEAP_OPTS
+              value: '-Xmx2G'
+            - name: KAFKA_ZOOKEEPER_CONNECT
+              value: zoo
+            - name: KAFKA_LOG_DIRS
+              value: /var/lib/kafka/data
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: '3'
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: '3'
+            - name: KAFKA_OPTS
+              value: "-javaagent:/opt/prometheus/jmx_prometheus_javaagent.jar=5555:/opt/prometheus/conf/prometheus-config.yml"
           ports:
           - containerPort: 9092
             name: kafka
           - containerPort: 5555
             name: prometheus
           volumeMounts:
-          - mountPath: /var/lib/kafka/data
-            name: datadir
-            subPath: kafka-data
-        terminationGracePeriodSeconds: 10
+          - name: datadir
+            mountPath: /var/lib/kafka/data
+          command:
+            - sh
+            - -exc
+            - |
+              unset KAFKA_PORT && export KAFKA_BROKER_ID=${HOSTNAME##*-} && \
+              export KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://${POD_IP}:9092,EXTERNAL://${HOST_IP}:$((31090 + ${KAFKA_BROKER_ID})) && \
+              exec /etc/confluent/docker/run
         volumes:
-        - emptyDir: {}
-          name: datadir
+        - name: datadir
+          emptyDir: {}
 kind: List
 metadata: {}
