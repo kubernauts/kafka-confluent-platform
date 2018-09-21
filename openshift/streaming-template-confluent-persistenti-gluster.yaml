@@ -1,0 +1,326 @@
+id: streaming
+kind: Template
+apiVersion: v1
+name: Streaming Service
+metadata:
+  name: streaming
+  labels:
+    category: streaming
+  annotations:
+    description: |
+      This is a test template for our streaming service. In the end it
+      should provide following services:
+      * Kafka ✓
+      * Kafka Connect
+      * Kafka Schema Registry
+      * KSQL
+      * REST Proxy
+    tags: "kafka,confluent-platform,streaming"
+    openshift.io/display-name: "Streaming Service (Confluent Platform Open Source)"
+    iconClass: "fa pficon-topology"
+parameters:
+
+
+
+# Zookeeper Parameters
+- description: The number of zookeeper nodes to deploy
+  displayName: Zookeeper node count
+  name: ZOOKEEPER_NODES
+  value: "3"
+  required: true
+- description: Persistent volume size for Zookeeper
+  name: ZOOKEEPER_VOLUME_SIZE
+  value: 1Gi
+  required: true
+- description: The JVM options for Zookeper
+  displayName: Zookeeper JVM options
+  name: ZOOKEEPER_SERVER_JVMFLAGS
+  value: "-Xmx512m"
+- description: The JVM options for Zookeper
+  displayName: Zookeeper JVM options
+  name: ZOOKEEPER_SERVER_JVMFLAGS
+  value: "-Xmx512m"
+- description: The name of the OpenShift Service exposed for the zookeeper cluster.
+  displayName: Zookeeper service name
+  name: ZOOKEEPER_SERVICE_NAME
+  value: "zookeeper"
+  required: true
+- description: The name of the OpenShift DNS records service exposed for the zookeeper cluster.
+  displayName: Zookeeper DNS records service name
+  name: ZOOKEEPER_DNS_SERVICE_NAME
+  value: "zoo"
+  required: true
+
+
+
+# Kafka Parameters
+- description: The number of kafka nodes to deploy
+  displayName: Kafka node count
+  name: KAFKA_NODES
+  value: "3"
+  required: true
+- description: Persistent volume size for Kafka
+  name: KAFKA_VOLUME_SIZE
+  value: 1Gi
+  required: true
+- description: The JVM heap options for Kafka
+  displayName: Kafka JVM heap options
+  name: KAFKA_HEAP_OPTS
+  value: "-Xmx2G"
+- description: The name of the Kafka cluster. Will be used to annotate cluster with label 'app'
+  displayName: App name for Kafka cluster
+  name: CLUSTER_APP_NAME
+  value: "kafka"
+  required: true
+- description: The name of the OpenShift Service exposed for the Kafka cluster.
+  displayName: Kafka service name
+  name: KAFKA_SERVICE_NAME
+  value: "kafka"
+  required: true
+- description: The name of the OpenShift DNS records service used for the Kafka brokers.
+  displayName: Kafka DNS records service name
+  name: KAFKA_DNS_SERVICE_NAME
+  value: "broker"
+  required: true
+objects:
+
+
+
+  # Zookeeper
+  # Headless service for Zookeeper Identity
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: ${ZOOKEEPER_DNS_SERVICE_NAME}
+    labels:
+      app: ${CLUSTER_APP_NAME}
+      component: zookeeper
+  spec:
+    ports:
+    - port: 2888
+      name: peer # Peer Port (communication ZK<->ZK)
+    - port: 3888
+      name: leader-election # Leader Election Port (ZK<->ZK)
+    clusterIP: None
+    selector:
+      app: ${CLUSTER_APP_NAME}
+      component: zookeeper
+  # Service for ZK Clients
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: ${ZOOKEEPER_SERVICE_NAME}
+    labels:
+      app: ${CLUSTER_APP_NAME}
+      component: zookeeper
+  spec:
+    ports:
+    - port: 2181
+      name: client
+    selector:
+      app: ${CLUSTER_APP_NAME}
+      component: zookeeper
+  # Stateful Set
+- apiVersion: apps/v1beta1
+  kind: StatefulSet
+  metadata:
+    name: ${ZOOKEEPER_DNS_SERVICE_NAME}
+    labels:
+      app: ${CLUSTER_APP_NAME}
+      component: zookeeper
+  spec:
+    serviceName: ${ZOOKEEPER_DNS_SERVICE_NAME}
+    replicas: ${ZOOKEEPER_NODES}
+    template:
+      metadata:
+        labels:
+          app: ${CLUSTER_APP_NAME}
+          component: zookeeper
+        annotations:
+          prometheus.io/scrape: "true"
+          prometheus.io/path: "/metrics"
+          prometheus.io/port: "5555"
+      spec:
+        terminationGracePeriodSeconds: 10
+        containers:
+          - name: zookeeper
+            image: 'confluentinc/cp-zookeeper:5.0.0'
+            env:
+            - name: KAFKA_HEAP_OPTS
+              value: '-Xms512M -Xmx512M'
+            - name: ZOOKEEPER_TICK_TIME
+              value: '2000'
+            - name: ZOOKEEPER_SYNC_LIMIT
+              value: '5'
+            - name: ZOOKEEPER_INIT_LIMIT
+              value: '10'
+            - name: ZOOKEEPER_MAX_CLIENT_CNXNS
+              value: '60'
+            - name: ZOOKEEPER_AUTOPURGE_SNAP_RETAIN_COUNT
+              value: '3'
+            - name: ZOOKEEPER_AUTOPURGE_PURGE_INTERVAL
+              value: '24'
+            - name: ZOOKEEPER_CLIENT_PORT
+              value: '2181'
+            - name: ZOOKEEPER_SERVER_ID
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: ZOOKEEPER_SERVERS
+              value: >-
+                zoo-0.zoo.kafka-confluent-5.svc.cluster.local:2888:3888;zoo-1.zoo.kafka-confluent-5.svc.cluster.local:2888:3888;zoo-2.zoo.kafka-confluent-5.svc.cluster.local:2888:3888
+            ports:
+              - containerPort: 2181
+                name: client
+              - containerPort: 2888
+                name: peer
+              - containerPort: 3888
+                name: leader-election
+            volumeMounts:
+              - name: datadir
+                mountPath:  /var/lib/zookeeper/data
+            # Set Zookeeper Server ID by fetching the hostname (hostname is of the form `zookeeper-0`, `zookeeper-1`, …
+            command:
+            - /bin/bash
+            - -c
+            - export ZOOKEEPER_SERVER_ID=$((${HOSTNAME##*-}+1)) && /etc/confluent/docker/run
+        volumes:
+        - name: datadir
+          emptyDir: {}
+    volumeClaimTemplates:
+    - metadata:
+        name: datadir
+        labels:
+          app: ${CLUSTER_APP_NAME}
+          component: zookeeper
+        annotations:
+          # Required for successfully claiming a persistent volume
+          volume.beta.kubernetes.io/storage-class: glusterfs
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: ${ZOOKEEPER_VOLUME_SIZE}
+# Kafka
+# Headless Service
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: ${KAFKA_DNS_SERVICE_NAME}
+    labels:
+      app: ${CLUSTER_APP_NAME}
+      component: kafka-broker
+  spec:
+    ports:
+    - port: 9092
+    clusterIP: None
+    selector:
+      app: ${CLUSTER_APP_NAME}
+      component: kafka-broker
+# Service for bootstrapping
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: ${KAFKA_SERVICE_NAME}
+    labels:
+      app: ${CLUSTER_APP_NAME}
+      component: kafka-broker
+  spec:
+    ports:
+    - port: 9092
+    selector:
+      app: ${CLUSTER_APP_NAME}
+      component: kafka-broker
+# StatefulSet
+- apiVersion: apps/v1beta1
+  kind: StatefulSet
+  metadata:
+    name: kafka
+    labels:
+      app: ${CLUSTER_APP_NAME}
+      component: kafka-broker
+  spec:
+    serviceName: ${KAFKA_DNS_SERVICE_NAME}
+    replicas: ${KAFKA_NODES}
+    template:
+      metadata:
+        labels:
+          app: ${CLUSTER_APP_NAME}
+          component: kafka-broker
+        annotations:
+          prometheus.io/scrape: "true"
+          prometheus.io/path: "/metrics"
+          prometheus.io/port: "5555"
+      spec:
+        terminationGracePeriodSeconds: 10
+        containers:
+        - name: broker
+          image: 'confluentinc/cp-kafka:5.0.0'
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: HOST_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: KAFKA_ADVERTISED_LISTENERS
+              value: 'EXTERNAL://${HOST_IP}:$((31090 + ${KAFKA_BROKER_ID}))'
+            - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+              value: 'PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT'
+            - name: KAFKA_HEAP_OPTS
+              value: '-Xmx2G'
+            - name: KAFKA_ZOOKEEPER_CONNECT
+              value: zoo
+            - name: KAFKA_LOG_DIRS
+              value: /var/lib/kafka/data
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: '3'
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: '3'
+          ports:
+          - containerPort: 9092
+            name: kafka
+          - containerPort: 5555
+            name: prometheus
+          volumeMounts:
+          - name: datadir
+            mountPath: /var/lib/kafka/data
+            # subPath is required because the directory provided by
+            # GlusterFS is not empty: It contains .trash directory for
+            # trash which we do not need and leads to aborting the
+            # Kafka startup.
+            subPath: kafka-data
+          command:
+            - /bin/bash
+            - '-c'
+            - >-
+              unset KAFKA_PORT && export KAFKA_BROKER_ID=${HOSTNAME##*-} && \
+
+              export
+              KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://${POD_IP}:9092,EXTERNAL://$HOSTNAME:$((31090
+              + ${KAFKA_BROKER_ID})) && \
+
+              exec /etc/confluent/docker/run
+        volumes:
+        - name: datadir
+          emptyDir: {}
+    volumeClaimTemplates:
+    - metadata:
+        name: datadir
+        labels:
+          app: ${CLUSTER_APP_NAME}
+          component: kafka-broker
+        annotations:
+          volume.beta.kubernetes.io/storage-class: glusterfs
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: ${KAFKA_VOLUME_SIZE}
