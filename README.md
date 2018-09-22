@@ -27,7 +27,7 @@ zoo-2     1/1       Running   0          1m
 To deploy the persistent version with PVCs, create the kafka-confluent-5 namespace, create the storage class gp2 (for aws-ebs here) and deploy the kafka-broker, zookeeper and the related services with persitent support as follow: 
 
 ```bash
-$ kubectl create -f kafka-confluent-5
+$ kubectl create ns kafka-confluent-5
 $ kubectl create -f https://raw.githubusercontent.com/kubernauts/kafka-confluent-platform/master/k8s/streaming-persistent-aws-ebs.yaml
 $ kubectl create -f https://raw.githubusercontent.com/kubernauts/kafka-confluent-platform/master/k8s/streaming-ephemeral.yaml
 ```
