@@ -232,6 +232,9 @@ You'll get a bunch of other very useful dashboard provided throught the Rancher 
 ![Alt text](./rancher.png?raw=true "Rancher")
 ![Alt text](./grafana-kafka-overview.png?raw=true "Grafana Kafka Overview")
 ![Alt text](./grafana-dashboards.png?raw=true "Grafana Kafka Dashboards")
+![Alt text](./grafana-kafka-dashboard.png?raw=true "Grafana Kafka Dashboard")
+![Alt text](./openshift.png?raw=true "OpenShift Dashboard")
+
 
 ### Useful links
 
