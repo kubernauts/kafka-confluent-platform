@@ -8,7 +8,7 @@ To deploy the ephemeral version for development create the kafka-confluent-5 nam
 
 ```bash
 $ kubectl create ns kafka-confluent-5
-$ kubectl create -f https://raw.githubusercontent.com/kubernauts/kafka-confluent-platform/master/k8s/streaming-ephemeral.yaml
+$ kubectl create -f https://raw.githubusercontent.com/kubernauts/kafka-confluent-platform/master/k8s/streaming-ephemeral.yaml -n kafka-confluent-5
 ```
 
 ```bash
@@ -26,10 +26,29 @@ zoo-2     1/1       Running   0          1m
 
 To deploy the persistent version with PVCs, create the kafka-confluent-5 namespace, create the storage class gp2 (for aws-ebs here) and deploy the kafka-broker, zookeeper and the related services with persitent support as follow: 
 
+Please adapt the zone in the storage class where you've your k8s cluster:
+
+```bash
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp2
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+  labels:
+    kubernetes.io/cluster-service: "true"
+provisioner: kubernetes.io/aws-ebs
+parameters:
+  type: gp2
+  zone: "us-east-1a"
+```
+
+And run the follwoing commads:
+
 ```bash
 $ kubectl create ns kafka-confluent-5
 $ kubectl create -f https://raw.githubusercontent.com/kubernauts/kafka-confluent-platform/master/k8s/storageclass-aws-ebs.yaml
-$ kubectl create -f https://raw.githubusercontent.com/kubernauts/kafka-confluent-platform/master/k8s/streaming-persistent-aws-ebs.yaml
+$ kubectl create -f https://raw.githubusercontent.com/kubernauts/kafka-confluent-platform/master/k8s/streaming-persistent-aws-ebs.yaml -n kafka-confluent-5
 ```
 
 ## Qucik start OpenShift
