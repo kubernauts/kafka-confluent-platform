@@ -7,7 +7,7 @@ This repo provides docker files, k8s manifests and OpenShift templates for Apach
 To deploy the ephemeral version for development create the kafka-confluent-5 namespace and deploy the kafka-broker, zookeeper and the related services as follow:
 
 ```bash
-$ kubectl create -f kafka-confluent-5
+$ kubectl create ns kafka-confluent-5
 $ kubectl create -f https://raw.githubusercontent.com/kubernauts/kafka-confluent-platform/master/k8s/streaming-ephemeral.yaml
 ```
 
