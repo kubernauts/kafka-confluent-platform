@@ -102,7 +102,7 @@ In another shell exec into the cosumer container and read messages:
 ```bash
 $ k exec -it kafkacat-12345 -c consumer /bin/bash
 # kafkacat -C -b kafka:9092 -t topic1
-```bash
+```
 
 ## Deploy Yahoo Kafka Manager with Helm
 
