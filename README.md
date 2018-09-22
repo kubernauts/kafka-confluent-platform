@@ -38,7 +38,7 @@ For OpenShift 3.5 create a project "kafka-confluent-5" in OpenShift and upload t
 
 https://raw.githubusercontent.com/kubernauts/kafka-confluent-platform/master/openshift/streaming-template-confluent-persistenti-gluster.yaml  
 
-## Testing
+## Testing with Confluent Test Client
 
 Deploy confluent test-client
 
@@ -81,6 +81,28 @@ kubectl exec -it confluent-client -- /usr/bin/kafka-console-consumer --bootstrap
 ```bash
 kubectl exec -it confluent-client -- /usr/bin/kafka-topics --zookeeper zookeeper:2181 --delete --topic topic1
 ```
+
+### Testing with Kafkacat
+
+Deploy Kafkacat:
+
+```bash
+kubectl create -f kafkacat.yml
+```
+
+Exec into the producer container and write messages to topic1:
+
+```bash
+$ k exec -it kafkacat-12345 -c producer /bin/bash
+$ for i in `seq 1 100`; do  echo "hello kafka world"  | kafkacat -b kafka:9092 -t topic1; done
+```
+
+In another shell exec into the cosumer container and read messages:
+
+```bash
+$ k exec -it kafkacat-12345 -c consumer /bin/bash
+# kafkacat -C -b kafka:9092 -t topic1
+```bash
 
 ## Deploy Yahoo Kafka Manager with Helm
 
@@ -184,12 +206,24 @@ $ kubectlforward prometheus-grafana-5bf7b6d949-pldn7 3000
 ```
 
 Import the kafka-overview_rev1.json provided in the root of this repo as "Kafka Overview" Dashboard.
-You'll get a bunch of other very useful dashboard provided throught te Rancher installation.
+You'll get a bunch of other very useful dashboard provided throught the Rancher installation.
 
+### Screenshots
+
+![Alt text](./rancher.png?raw=true "Rancher")
 ![Alt text](./grafana-kafka-overview.png?raw=true "Grafana Kafka Overview")
 ![Alt text](./grafana-dashboards.png?raw=true "Grafana Kafka Dashboards")
 
-### Any Questions?
+### Useful links
+
+https://github.com/edenhill/kafkacat
+https://github.com/Yolean/kubernetes-kafka
+https://docs.confluent.io/current/app-development/kafkacat-usage.html
+https://docs.confluent.io/current/installation/installing_cp/cp-helm-charts/docs/index.html#cp-helm-quickstart
+https://hackernoon.com/a-blockchain-experiment-with-apache-kafka-97ee0ab6aefc
+https://hackernoon.com/simple-chatops-with-kafka-grafana-prometheus-and-slack-764ece59e707
+
+### Get in touch
 
 Join us on Kubernauts Slack Channel:
 
