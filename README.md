@@ -28,8 +28,8 @@ To deploy the persistent version with PVCs, create the kafka-confluent-5 namespa
 
 ```bash
 $ kubectl create ns kafka-confluent-5
+$ kubectl create -f https://raw.githubusercontent.com/kubernauts/kafka-confluent-platform/master/k8s/storageclass-aws-ebs.yaml
 $ kubectl create -f https://raw.githubusercontent.com/kubernauts/kafka-confluent-platform/master/k8s/streaming-persistent-aws-ebs.yaml
-$ kubectl create -f https://raw.githubusercontent.com/kubernauts/kafka-confluent-platform/master/k8s/streaming-ephemeral.yaml
 ```
 
 ## Qucik start OpenShift
