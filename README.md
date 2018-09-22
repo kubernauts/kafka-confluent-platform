@@ -217,10 +217,15 @@ You'll get a bunch of other very useful dashboard provided throught the Rancher 
 ### Useful links
 
 https://github.com/edenhill/kafkacat
+
 https://github.com/Yolean/kubernetes-kafka
+
 https://docs.confluent.io/current/app-development/kafkacat-usage.html
+
 https://docs.confluent.io/current/installation/installing_cp/cp-helm-charts/docs/index.html#cp-helm-quickstart
+
 https://hackernoon.com/a-blockchain-experiment-with-apache-kafka-97ee0ab6aefc
+
 https://hackernoon.com/simple-chatops-with-kafka-grafana-prometheus-and-slack-764ece59e707
 
 ### Get in touch
