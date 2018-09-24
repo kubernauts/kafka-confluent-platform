@@ -2,6 +2,11 @@
 
 This repo provides docker files, k8s manifests and OpenShift templates for Apache Kafka® Confluent Platform Community Edition. The reason why we're not using helm charts or the kafka operator at this time is because we like plain manifests which are more suitable for the learning phase.
 
+## Prerequisites
+
+This implementation was developed and tested on EKS with k8s 1.10.3, with tk8 made k8s 1.11.2 and OpenShift 3.5 and 3.7.
+If one would like to get it working on k8s < 1.9.x, the `apiVersion` for StatefulSets should be changed to `apps/v1beta1` or `apps/v1beta2` instead of `apps/v1`.
+
 ## Quick start ephemeral
 
 To deploy the ephemeral version for development create the kafka-confluent-5 namespace and deploy the kafka-broker, zookeeper and the related services as follow:
@@ -224,8 +229,18 @@ Run something like this to access the Grafana Dashboard:
 $ kubectlforward prometheus-grafana-5bf7b6d949-pldn7 3000
 ```
 
-Import the kafka-overview_rev1.json provided in the root of this repo as "Kafka Overview" Dashboard.
+Import the kafka-overview_rev1.json and grafana-kafka-dashboard.json provided in the root of this repo as "Kafka Overview" Dashboard.
 You'll get a bunch of other very useful dashboard provided throught the Rancher installation.
+
+### Clean up
+
+To clean up your environment, run:
+
+```bash
+$ k delete all -l app=kafka -n kafka-confluent-5
+$ k delete pvc --all
+$ k delete ns kafka-confluent-5
+```
 
 ### Screenshots
 
